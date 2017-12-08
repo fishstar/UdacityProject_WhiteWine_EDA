@@ -1,0 +1,932 @@
+
+---
+title: "白酒品质数据探索式分析"
+author: "by fishstaryx"
+date: "2017/12/08"
+output: html_document
+---
+
+========================================================
+
+这份报告选取了白酒品质数据集，对其进行了探索分析。
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(GGally)
+library(reshape2)
+library(dplyr)
+library(memisc)
+library(RColorBrewer)
+library(gridExtra)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+
+wine <- read.csv('wineQualityWhites.csv')
+wine <- wine[ , c(2:13)]   # 去除原数据中的第一列索引
+```
+
+
+<br>
+
+## 单一变量做图
+
+<br>
+查看数据维度，一共有4898条数据记录，12个变量。
+
+```{r echo=FALSE}
+dim(wine)
+```
+
+<br>
+查看数据结构，11个关于白酒化学成分的变量，都是数值数据；还有一项 quality 是对白酒品质的打分，是0-10之间的整数。
+
+```{r echo=FALSE}
+str(wine)
+```
+
+<br>
+查看数据的统计量。
+
+```{r echo=FALSE}
+summary(wine)
+```
+
+
+<br>
+绘制 quality 变量的直方图。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x = quality, data = wine)
+```
+
+
+<br>
+绘制 quality 变量的箱图。
+
+```{r echo=FALSE}
+boxplot(wine$quality)
+```
+
+
+<br>
+quality 变量的统计量。
+
+```{r echo=FALSE}
+summary(wine$quality)
+```
+
+<br>
+quality 变量的分布情况。
+
+```{r echo=FALSE}
+table(wine$quality)
+```
+
+<br>
+从上面关于 quality 变量的绘图和统计结果可以发现，
+品质打分 quality 变量是离散的，数值在3分到9分之间，6分的数据最多，并且向两边递减，数据主要集中在5-7分之间。
+
+
+
+<br>
+固定酸度（fixed.acidity) 的直方图，形态接近正态分布。
+
+```{r echo=FALSE}
+qplot(x = fixed.acidity, data = wine, binwidth = 0.2)
+```
+
+
+
+
+<br>
+挥发酸度（volatile.acidity) 的直方图，接近正态分布，右偏。
+
+```{r echo=FALSE}
+qplot(x = volatile.acidity, data = wine, binwidth = 0.02)
+```
+
+
+
+<br>
+柠檬酸（citric.acid）的直方图，总体接近正态分布，在0.49处数据量有陡增。
+
+```{r echo=FALSE}
+qplot(x = citric.acid, data = wine, binwidth = 0.02)
+```
+
+
+
+
+
+<br>
+残糖（residual.sugar）的直方图。
+
+```{r echo=FALSE}
+qplot(x = residual.sugar, data = wine, binwidth = 0.5)
+```
+
+<br>
+残糖（residual.sugar）的箱图。
+
+```{r echo=FALSE}
+boxplot(wine$residual.sugar)
+```
+
+残糖（residual.sugar）直方图中看出这一变量数据集中在比较小的数值部分，且有多个峰，大体上有向右递减的趋势。
+从它的箱图上看出有异常大的离群值存在。
+
+
+<br>
+氯化物（chlorides）的直方图，右侧有非常长的尾巴。
+
+```{r echo=FALSE}
+qplot(x = chlorides, data = wine, binwidth = 0.004)
+```
+
+
+<br>
+游离二氧化硫（free.sulfur.dioxide）的直方图，有异常大的离群值。
+
+```{r echo=FALSE}
+qplot(x = free.sulfur.dioxide, data = wine, binwidth = 3)
+```
+
+
+<br>
+总二氧化硫（total.sulfur.dioxide）的直方图。
+
+```{r echo=FALSE}
+qplot(x = total.sulfur.dioxide, data = wine, binwidth = 5)
+```
+
+
+<br>
+密度（density）的直方图。
+
+```{r echo=FALSE}
+qplot(x = density, data = wine, binwidth = 0.0005)
+```
+
+<br>
+酸碱度（pH）的直方图。
+
+```{r echo=FALSE}
+qplot(x = pH, data = wine, binwidth = 0.02)
+```
+
+<br>
+硫酸盐（sulphates）的直方图。
+
+```{r echo=FALSE}
+qplot(x = sulphates, data = wine, binwidth = 0.02)
+```
+
+
+<br>
+酒精度（alcohol）的直方图，分布不是很规则，总体上有向右递减的趋势。
+
+```{r echo=FALSE}
+qplot(x = alcohol, data = wine, binwidth = 0.2)
+```
+
+
+
+
+
+<br>
+<br>
+
+## 单一变量分析
+
+<br>
+
+#### 数据集的结构是怎样的？
+
+该白酒数据集一共有4898条数据记录，包含11个化学成分的变量，以及1项品质打分的变量。
+品质打分 quality 是0-10之间的整数，11个化学成分变量分别是：
+
+1. fixed.acidity 固定酸度 （是不改变、不挥发的）[ 单位：g/ dm^3 ]
+2. volatile.acidity 挥发酸度 （醋酸含量，浓度太高时影响口感）[ 单位： g/dm^3 ]
+3. citric.acid 柠檬酸 （量少， 带来“新鲜”的口感）[  单位：g/dm^3 ]
+4. residual.sugar 残糖 （发酵完成后剩余的糖， 一般在 1 - 45 间）[  单位：g/dm^3 ]  
+5. chlorides 氯化物 （含盐量）[  单位：g/dm^3 ]
+6. free.sulfur.dioxide 游离二氧化硫 （阻碍微生物繁殖，防止白酒氧化）[ 单位： mg/dm^3 ]
+7. total.sulfur.dioxide 总二氧化硫 （低浓度下难被感觉到，游离SO2浓度超过50 ppm时，可被味觉和嗅觉识别）[  单位：mg/dm^3 ]
+8. density 浓度 （与酒精和糖的浓度有关）[ 单位： g/cm^3 ]
+9. PH 酸碱度 （大部分酒处在3-4之间）
+10. sulphates 硫酸盐 （酒中的添加剂，贡献SO2，起到抗菌和抗氧化作用）[ 单位： g/dm^3 ]
+11. alcohol 酒精浓度 [ 单位：%]
+
+
+其他观察到的现象：
+
+* quality 变量是离散的，数值在3分到9分之间，6分的数据最多，并且向两边递减，数据主要集中在5-7分之间。
+* 大部分变量的分布都接近正态分布，并且在右侧有一条长尾。
+* 而 residual.sugar 和 alcohol 这两个变量的分布与其他变量不同，数据主要集中在左侧，并向右递减。
+
+
+<br>
+
+#### 数据集中最感兴趣的特征有哪些？
+
+这份数据集中最感兴趣的特征是白酒的品质 quality 变量，它是三位评酒师给出的打分数据。
+这里希望探究 quality 变量与白酒化学成分之间的关系，哪些化学成分会影响白酒品质的好坏。
+
+
+
+<br>
+
+#### 你认为数据集中还有哪些特征将有助于你对感兴趣特征的研究？
+
+因为 quality 变量是由人给出的打分，所以根据人们能感知到的酸甜苦辣咸等，
+猜测酒精度（alcohol）、
+酸度（fixed.acidity、volatile.acidity、PH）、
+含盐量（chlorides）、
+含糖量（residual.sugar）这些都对白酒品质 quality 有影响。
+另外总二氧化硫（total.sulfur.dioxide）浓度较大时，也能被味觉和嗅觉识别，所以猜测它也能影响 quality。
+当然，这些特征到底对 quality 有多大的贡献，还需要后续进一步的数据分析。
+
+
+
+
+
+<br>
+<br>
+
+## 两个变量做图
+
+
+<br>
+相关系数矩阵。
+
+```{r echo=FALSE}
+cormat <- cor(wine)
+round(cormat, 2)  # 近似到2位小数点
+```
+
+<br>
+将相关系数矩阵转换成热图，方便观察。
+
+```{r echo=FALSE}
+melted_cormat <- melt(cormat)  # 重新组织数据形式
+ggplot(data = melted_cormat, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() + 
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 9, hjust = 1))
+```
+
+<br>
+从相关系数矩阵及其对应的热图中，我们可以发现如下变量之间的相关性：
+
+* density 与 residual.sugar、alcohol相关性比较高，前者正相关，后者负相关。
+* total.sulfur.dioxide 和 free.sulfur.dioxide 相关性高。
+* pH 和 fixed.acidity 负相关度较高。
+* alcohol 与 total.sulfur.dioxide、free.sulfur.dioxide、chlorides、residual.sugar 相关度较高。
+* quality 与大部分量都是负相关的，只有与pH、alcohol有一定的正相关。
+
+
+
+
+<br>
+绘制各变量的矩阵散点图。
+
+```{r echo=FALSE, fig.height = 10, fig.width = 10}
+ggpairs(wine)
+```
+
+<br>
+从上面的矩阵散点图中，我们能发现有些变量之间有显著的线性相关性，最明显的就是 density 与 residual.sugar、alcohol 之间的线性相关性。下面就单独来观察他们散点图。
+
+
+<br>
+绘制 density 与 residual.sugar 的散点图，并进行线性拟合。
+
+```{r echo=FALSE}
+ggplot(aes(x = residual.sugar, y = density), data = wine) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+<br>
+从上图可以看出，density 与 residual.sugar 这两个变量之间有非常好的线性相关性。
+之前计算得到的相关系数是0.84，相关性非常强。可见，白酒中的含糖量增加，密度也增加。
+
+<br>
+绘制 density 与 alcohol 的散点图，并进行线性拟合。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+<br>
+由于 alcohol 在数值上之精确到0.1，所以上图中的alcohol看上去像是离散的。可以通过增加抖动来解决这一问题，如下图所示。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_jitter(width = 0.05, alpha = 0.2 ) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+<br>
+从图中可以看出，density 与 alcohol 成非常强的负的线性相关性，之前计算得到的相关系数是 -0.78。
+含酒精量越高，密度越低，这与常识是一致的，因为酒精的密度低于水的密度。
+
+
+<br>
+total.sulfur.dioxide 和 free.sulfur.dioxide 的相关系数有0.62，再来看他们之间的散点图。
+
+```{r echo=FALSE}
+ggplot(aes(x = total.sulfur.dioxide, y = free.sulfur.dioxide), data = wine) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+<br>
+pH 和 fixed.acidity 的相关系数是 -0.43， 看一下他们之间的散点图。
+可见，固定酸度越高，PH值越低，与常识一致。
+
+```{r echo=FALSE}
+ggplot(aes(x = fixed.acidity, y = pH), data = wine) +
+  geom_point(alpha = 0.2) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+
+
+<br>
+在查看完几组相关性比较高的变量之后，现在来观察下我们主要感兴趣的变量白酒品质 quality 与白酒化学成分变量之间的关系。
+
+由于 quality 与 alcohol 的相关度最高，相关系数有0.44， 所以我们首先来绘制 quality 与 alcohol 的散点图。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = quality), data = wine) +
+  geom_point(alpha = 0.3)
+```
+
+<br>
+增加抖动和线性拟合。
+
+```{r echo=FALSE}
+ggplot(aes(x = alcohol, y = quality), data = wine) +
+  geom_jitter(width = 0.05, alpha = 0.3) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+<br>
+从上图看，它们之间的线性关系并不是特别明显。
+再来看 quality 与 alcohol 之间的箱图，即查看不同 quality 下的 alcohol 变量的分布情况。
+
+
+```{r echo=FALSE}
+wine$quality_factor <- factor(wine$quality)  # 将quality 转换成因子变量
+
+ggplot(aes(x = quality_factor, y = alcohol), data = wine) +
+  geom_boxplot() + 
+  coord_flip()
+```
+
+<br> 
+从这幅箱图中我们发现，alcohol 的中位数并非是随 quality 线性增长的，
+而是随着quality 增加，alcohol 中位数先降低，后升高。
+
+下面具体看下不同 quallity 下，alcohol 在数值上的统计量。
+
+```{r echo=FALSE}
+by(wine$alcohol, wine$quality_factor, summary)
+```
+
+
+<br>
+将白酒分为高低档两个等级，当分数低于6时，为低档；当分数大于等于6时，为高档。
+然后计算这两个等级的白酒 quality 与 alcohol 之间的相关性。
+
+低档白酒 quality 与 alcohol 的相关系数为：
+
+```{r echo=FALSE}
+low_wine <- wine[wine$quality < 6, ]
+cor(low_wine$quality, low_wine$alcohol)
+```
+
+高档白酒 quality 与 alcohol 的相关系数为：
+
+```{r echo=FALSE}
+high_wine <- wine[wine$quality >= 6, ]
+cor(high_wine$quality, high_wine$alcohol)
+```
+
+从上面的计算中发现，对低档白酒，酒精度越高，评分越低；对高档白酒，酒精度越高，评分越高。
+它们之间有着完全相反的相关性。
+
+
+
+
+<br>
+用线性模型对 quality 进行拟合，只考虑 alcohol 的贡献。
+由上面的探索知道，它们之间并没有很强的线性相关性，所以这里也考虑了多项式拟合，
+即包含了alcohol 一阶、两阶、三阶的情况。
+
+```{r echo=FALSE}
+m1 = lm(quality ~ alcohol, data = wine)
+m2 = lm(quality ~ alcohol + I(alcohol^2), data = wine)
+m3 = lm(quality ~ alcohol + I(alcohol^2) + I(alcohol^3), data = wine)
+
+mtable(m1, m2, m3)
+```
+
+<br>
+当使用多项式拟合时，r方略有增长，从 0.190 增加到 0.198。
+
+
+<br>
+接下来我们观察 quality 与 density 的关系。它们的相关系数是 -0.31。
+
+绘制 quality 与 density 的散点图，增加了抖动和透明度。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = density, y = quality), data = wine) +
+  geom_jitter(alpha = 0.1) + 
+  xlim(0.985, 1.02) + 
+  geom_smooth(method = 'lm', color = 'blue')
+```
+
+
+<br>
+绘制不同 quality 下 density 变量的箱图。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = quality_factor, y = density), data = wine) +
+  geom_boxplot() + 
+  ylim(0.985, 1.02) +
+  coord_flip()
+```
+
+
+
+
+<br>
+quality 与 chlorides 的箱图。
+
+```{r echo=FALSE}
+ggplot(aes(x = quality_factor, y = chlorides), data = wine) +
+  geom_boxplot() + 
+  coord_flip()
+```
+
+
+<br>
+quality 与 volatile.acidity 的箱图。
+
+```{r echo=FALSE}
+ggplot(aes(x = quality_factor, y = volatile.acidity), data = wine) +
+  geom_boxplot() + 
+  coord_flip()
+```
+
+
+<br>
+quality 与 total.sulfur.dioxide 的箱图。
+
+```{r echo=FALSE}
+ggplot(aes(x = quality_factor, y = total.sulfur.dioxide), data = wine) +
+  geom_boxplot() + 
+  coord_flip()
+```
+
+虽然 quality 与 chlorides、volatile.acidity、total.sulfur.dioxide 之间有相对来说较大的相关系数，约在-0.2左右，
+这个数值并不大，所以从图中并没有发现它们之间非常明显的线性关系。
+
+
+<br>
+<br>
+
+## 两个变量分析
+
+<br>
+
+#### 讲述一下你在这一部分探索中观察到的关系。感兴趣的特征是怎样随其他特征变化的？
+
+这里感兴趣的特征是白酒品质 quality，它与其他特征的关系如下：
+
+* quality 与酒精度 alcohol 的相关性最大，有0.44，是正相关。但如果将白酒分为两个等级，对低档白酒（评分小于6)，酒精度越高，评分越低；对高档白酒(评分大于等于6），酒精度越高，评分越高；这两个等级的就有着相反的相关性。
+
+* 其次相关的是密度 density，呈负相关，相关系数是-0.31。
+
+* quality 与 chlorides、volatile.acidity、total.sulfur.dioxide 这三个特征的相关性相对来说较大，在-0.2左右。
+
+
+
+
+<br>
+
+#### 你有没有在其他特征中观察到有意思的关系？
+
+在其他特征中，观察到密度 density 与 残糖 residual.sugar、酒精度 alcohol 有着非常高的线性相关性。
+密度与残糖呈正相关的关系，相关系数是0.84，含糖量越高，密度越大。
+密度与酒精度呈负相关，相关系数-0.78，含酒精度越高，密度越小。
+这与物理常识是一致的。
+
+还有如总SO2量 total.sulfur.dioxide 和游离SO2量 free.sulfur.dioxide， 也有较高的线性相关，相关系数达0.62。
+这大概是因为他们都描述了SO2的含量，只是SO2的形态不一。
+
+PH值反应的是酸碱度，所以它应该和酒中的酸度有关。计算发现 PH 和固定酸度 fixed.acidity 有较强的负相关，相关系数达 -0.42。
+因为含酸的浓度越高，PH值越低，所以是负相关的。
+但是 PH 和挥发酸度 volatile.acidity 的相关性很小，这大概是因为挥发性的酸对PH影响很小，因为容易挥发的缘故。
+
+
+<br>
+
+#### 你发现的最强的关系是什么？
+
+最强的关系就是密度 density 与 残糖 residual.sugar 这两个变量，它们的相关系数达到0.84。
+
+
+
+<br>
+<br>
+
+## 多个变量做图
+
+<br>
+首先采用 facet_wrap 的方法，绘制不同 quality 下，density 与 alcohol 关系的散点图。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_point(alpha = 0.2) +
+  facet_wrap(~quality_factor) +
+  scale_y_continuous(limits = c(0.985, 1.005))
+```
+
+
+<br>
+从上面的一系列图中，发现随着 quality 分数变大，数据点有向右下角集中的趋势。
+所以让我们在同一幅图中来绘制 density 与 alcohol 之间的散点图，并用不同颜色的点来区分不同的 quality。
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_point(aes(color = quality_factor)) +
+  scale_color_brewer(type = 'qual') + 
+  scale_y_continuous(limits = c(0.985, 1.005))
+```
+
+
+<br>
+从上图发现，从左上到右下角，quality 有逐渐增大的趋势。
+
+由于上图中颜色太多，不利于观察，这里将 quanlity 分数切分成三份，
+即将白酒品质按 quality 分为低（0-5）、中（6）、高（7-10）这三个等级。
+在每一等级中数据量的分布如下：
+
+```{r echo=FALSE}
+# 将quality切分成3等，便于后续分析比较
+wine$quality_cut <- cut(wine$quality, breaks=c(0,5,6,10)) 
+table(wine$quality_cut)
+```
+
+
+<br>
+然后我们用重新分组的 quality 等级来绘制类似的图。
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_point(aes(color = quality_cut)) +
+  scale_color_brewer(type = 'qual') + 
+  scale_y_continuous(limits = c(0.985, 1.005))
+```
+
+<br>
+从这幅图中，就可以很容易的看出，低等的酒主要分布在左上角，高等的酒主要分布在右下角。
+也就是说，密度越大、酒精度越低，品质越低；而密度越小、酒精度越高，品质也越高。
+
+<br>
+类似的，绘制 density 和 residual.sugar 之间的散点图，用白酒品质的高中低来区分数据点。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x = residual.sugar, y = density), data = wine) +
+  geom_point(aes(color = quality_cut)) +
+  scale_color_brewer(type = 'qual') + 
+  scale_x_continuous(limits = c(0,30)) + 
+  scale_y_continuous(limits = c(0.985, 1.005))
+```
+
+<br>
+高中低三种品质的白酒在上述的散点图中，有着比较明显的分层，
+当残糖 residual.sugar 固定时，密度越高，白酒品质越可能降低。
+
+
+<br>
+下面来观察 density、residual.sugar 和 alcohol 这三个变量之间的关系。
+将酒精度 alcohol 这一连续变量离散化，按1度进行分隔。
+然后在图中绘制 density 和 residual.sugar 之间的散点图，
+并使用颜色区分不同的酒精度区间，颜色从浅到深，依次表示酒精度增大。
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+wine$alcohol_cut <- cut(wine$alcohol, breaks=7:15)
+
+ggplot(aes(x = residual.sugar, y = density), data = wine) +
+  geom_point(aes(color = alcohol_cut)) +
+  scale_color_brewer(type='seq', palette='Reds') +
+  scale_x_continuous(limits = c(0,30)) + 
+  scale_y_continuous(limits = c(0.985, 1.005))
+
+```
+
+<br>
+density 与 residual.sugar 和 alcohol 这两个变量存在强相关性。
+在相同 alcohol 区间中，density 随 residual.sugar 增大而增大。
+当固定 residual.sugar 变量时， density 随 alcohol 增大而减小。
+这与之前计算的相关系数是一致的。
+
+
+
+<br>
+
+接下来采用线性回归，通过白酒的各项化学指标来拟合白酒品质 quality 这项数值。
+
+首先将所有11个化学特征都考虑进来，得到拟合的结果如下：
+
+```{r echo=FALSE}
+m1 = lm(quality ~ fixed.acidity + volatile.acidity + citric.acid + 
+          residual.sugar + chlorides + free.sulfur.dioxide + 
+          total.sulfur.dioxide + density + pH + sulphates + alcohol, 
+        data = wine)
+
+mtable(m1)
+```
+
+这里得到R方的值为0.282。
+
+<br>
+考虑到并非所有的特征对 quality 都是有贡献的，我们需要做特征选择。
+这里使用R语言中的`step()`函数，通过判断AIC的方法来选择线性模型中需要的特征。
+
+
+```{r echo=FALSE}
+step(lm(quality ~ 1, data = wine), 
+     scope = list(upper = ~fixed.acidity + volatile.acidity + citric.acid + 
+    residual.sugar + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + 
+    density + pH + sulphates + alcohol, lower = ~1),
+    direction="forward"
+    )
+
+```
+
+<br>
+最终，我们从11项特征中选择了8项，分别是  alcohol、volatile.acidity、residual.sugar、
+free.sulfur.dioxide、density 、pH、sulphates、fixed.acidity。
+用它们做线性拟合的结果如下：
+
+
+```{r echo=FALSE}
+m2 = lm(quality ~ alcohol +  volatile.acidity + residual.sugar + 
+          free.sulfur.dioxide + density + pH + sulphates + fixed.acidity, 
+        data = wine)
+
+mtable(m2)
+```
+
+得到的R方依然是0.282。
+
+<br>
+接着我们考虑多项式拟合，在上面选出的8个特征组成的线性模型中，再加入这些特征的平方项。
+拟合结果如下：
+
+```{r echo=FALSE}
+m3 = lm(quality ~ alcohol + I(alcohol^2) + 
+          volatile.acidity + I(volatile.acidity^2) +
+          residual.sugar + I(residual.sugar^2) +
+          free.sulfur.dioxide + I(free.sulfur.dioxide^2) +
+          density + I(density^2) + 
+          pH + I(pH^2) + 
+          sulphates + I(sulphates^2) +
+          fixed.acidity + I(fixed.acidity^2), 
+        data = wine)
+
+mtable(m3)
+```
+
+这时，我们发现R方值略有增加，变为0.314。看来多项式拟合还是对拟合效果有所提升的。
+
+
+
+<br>
+<br>
+
+## 多个变量分析
+
+<br>
+
+#### 讲述一下你在这一部分探索中观察到的关系。在你感兴趣的特征方面，这些特征有没有相互增强？
+
+在用白酒品质进行区分的 density 与 alcohol 的散点图中发现，
+当白酒密度越大、酒精度越低时，品质也越低；而密度越小、酒精度越高，品质也越高。
+
+在用白酒品质进行区分的 density 和 residual.sugar 的散点图，
+高中低三种品质的白酒在图上有着比较明显的分层，
+当残糖 residual.sugar 固定时，密度越高，白酒品质越可能降低。
+
+
+<br>
+
+#### 在特征之间有没有任何有趣或意外的交互？
+
+白酒的密度 density 与酒精度 alcohol 及含糖量 residual.sugar 有着非常强的相关性。
+在相同 alcohol 区间中，density 随 residual.sugar 增大而增大。
+当固定 residual.sugar 变量时， density 随 alcohol 增大而减小。
+这与之前计算的相关系数是一致的。
+
+
+
+<br>
+
+#### 可选：你为数据集创建模型了吗？讨论下你模型的优缺点。
+
+这里使用了线性回归模型，通过白酒的化学特征来拟合白酒品质 quality 变量。
+
+优点：
+
+* 线性回归简单快速，对数据做探索性分析有一定帮助，便于后面设计更复杂的模型。
+* 文中对特征进行了筛选，使用R语言中的`step()`函数，通过AIC下降的方法从11项特征中选择了8项，去除了不必要特征的干扰。
+* 最后还使用了多项式拟合，在原有的线性模型中加入了特征的平方项，将R方值从0.282提升到0.314。
+
+缺点：
+
+* 模型比较粗糙，拟合效果并不是特别理想，R方值比较小，用来做白酒品质预测并不十分准确。
+* 没有将数据分为训练集和测试集，因此也没能准确评估模型的误差。
+
+
+<br>
+<br>
+
+------
+
+## 最终图形和摘要
+
+
+<br>
+
+#### 图一
+
+```{r echo=FALSE, Plot_One}
+melted_cormat <- melt(cormat)  # 重新组织数据形式
+
+ggplot(data = melted_cormat, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() + 
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+   midpoint = 0, limit = c(-1,1), space = "Lab", 
+   name="Pearson\nCorrelation") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, 
+                                   size = 9, hjust = 1)) + 
+  ggtitle("Correlation Matrix Hotmap") + 
+  xlab(NULL) + 
+  ylab(NULL)
+
+```
+
+<br>
+
+#### 关于图一的描述
+
+这幅图非常直观的反应了数据集中各个变量之间的相关性。
+图中使用两种色调来反映不同方向的相关性，红色表示正相关，蓝色表示负相关。
+并且颜色越深，相关系数越大。
+通过观察相关系数矩阵的热图，比直接查看相关系数矩阵，更容易发现其中隐藏的规律，特别是在变量比较多时。
+比如从图一中就很容易发现密度 density 与残糖 residual.sugar 有很强的正相关，与酒精度 alcohol 有很强的负相关。
+再比如白酒品质 quality 除了与酒精度 alcohol 有较强的相关性，与其他特征之间的相关性都比较弱。
+
+
+
+<br>
+
+#### 图二
+
+```{r echo=FALSE, Plot_Two, fig.width=7, fig.height=6}
+
+p1 <- ggplot(aes(x = alcohol, y = quality), data = wine) +
+  geom_jitter(width = 0.05, alpha = 0.3) + 
+  geom_smooth(method = 'lm', color = 'blue') + 
+  ggtitle("Scatter Plot of Wine Quality by Alcohol") + 
+  xlab("alcohol (%)") + 
+  ylab("quality")
+
+p2 <- ggplot(aes(x = quality_factor, y = alcohol), data = wine) +
+  geom_boxplot() + 
+  coord_flip() +
+  ggtitle("Box Plot of Wine Quality by Alcohol") + 
+  ylab("alcohol (%)") + 
+  xlab("quality")
+
+grid.arrange(p1, p2, ncol = 1)
+```
+
+
+<br>
+
+#### 关于图二的描述
+
+图二分别通过散点图和箱图这两种方式，来描述白酒品质 quality 与酒精度 alcohol 之间的关系。
+第一幅散点图通过抖动和设置透明度的方法，将原本过度重合的点进行区分。
+虽然 quality 与 alcohol 之间的相关系数相对较大，但是通过绘制线性拟合的直线，
+发现如果只用 alcohol 做线性拟合，并不能很好预测 quality。
+然后通过第二幅箱图，我们进一步观察到，其实 quality 并非随 alcohol 的增大而增大的：
+在品质小于6时，酒精度越高，品质可能越低，是负相关的；
+而在品质大于等于6时， 酒精度越高，品质越有可能提高，是正相关的。
+这也解释了为什么第一幅散点图中线性拟合的效果不好了。
+
+
+
+<br>
+
+#### 图三
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
+ggplot(aes(x = alcohol, y = density), data = wine) +
+  geom_point(aes(color = quality_cut)) +
+  scale_color_brewer(type = 'qual') + 
+  scale_y_continuous(limits = c(0.985, 1.005)) + 
+  labs(title = "Wine Density by Alcohol and Quality",
+       x = "alcohol (%)", y = "density (g/cm^3)", color = "quality")
+```
+
+
+<br>
+
+#### 关于图三的描述
+
+图三反应了白酒密度 density、酒精度 alcohol、品质 quality 这三者之间的关系。
+为了便于观察，图中将白酒品质分成了高中低三档，分别对应 quality 小于6、等于6、大于6这三种情况。
+首先能看到的是，无论对于哪一等级的白酒，密度与酒精度之间有很强的负的线性相关性，这是由密度的物理性质决定的。
+其次可以发现的是，如果只观察低档和高档酒，它们主要集中于上述散点图的两个方位：
+即低档酒更偏向于左上角，而高档酒更偏向于右下角，但是中档酒就没有这么明显的集中趋势。
+也就是说密度越高、酒精度越低，白酒的品质可能越低；密度越低，酒精度越高，白酒的品质可能越高。
+
+
+
+
+<br>
+<br>
+
+------
+
+## 反思
+
+<br>
+
+在这篇白酒数据集的探索分析报告中，我首先通过数值统计量和直方图、箱图的形式，了解了数据集中各个变量的分布。
+然后通过计算相关系数，绘制相关矩阵热图、各变量之间的散点图、箱图的方式，观察变量之间相关性。
+接着探索了数据集中多个变量之间的关系。
+最后使用线性回归模型，通过白酒的化学特征对其品质得分进行了拟合。
+
+在探索白酒品质 quality 与其他化学成分之间的关系时，并没有发现很强的相关性，大多数化学特征与品质得分的相关性都比较弱。
+更令人沮丧的是，即使是相关系数相对较大的酒精度 alcohol 这一特征，与 quality 的线性拟合结果也不是很好。
+通过图二中绘制的箱图，进一步发现，在品质比较低时，品质与酒精度负相关；品质较高时，品质与酒精度正相关。
+因此也预示着它们的线性关系并不是特别理想。
+
+在接下来使用线性回归模型通过白酒的化学特征拟合品质得分时，得到的R方值较小，
+这也进一步证实使用粗糙的线性回归模型，并不能很好预测白酒品质。
+这里我也做了一些努力和尝试，比如通过`step()`函数来筛选特征，并增加模型中特征的平方项，使得R方的值略有提高。
+
+在探索多个变量相互关系的图三中，我受到了一定的启发。
+由于观察到品质高和低的两档白酒在 density ~ alcohol 的散点图中，有向两个不同方向集中的趋势，
+也许可以采用分类的方法来预测白酒的品质。
+因为白酒品质打分是离散的数值，可以看成是若干个分类，
+通过使用决策树、随机森林等分类方法，也许比线性回归能更好的预测白酒的品质得分。
+
+所以在未来更进一步的分析中，可以采用分类模型来预测白酒品质得分，提高预测的准确性。
+另外针对数据集，也需要拆分成训练集和测试集，以提高对预测可靠性的衡量。
+
+另一个未来可拓展的角度，就是将红酒数据也包括进来，同时分析和对比白酒和红酒的相同点和差异性，让数据探索更丰富和全面。
+
+
+
+<br>
+<br>
+
+---
+
+## 参考资料
+
+* [ggplot2 : Quick correlation matrix heatmap - R software and data visualization](http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization)
+
+* [scale_color_brewer](http://ggplot.yhathq.com/docs/scale_color_brewer.html)
+
+* [Variable Selection for the Linear Model](https://onlinecourses.science.psu.edu/stat857/node/45)
+
+
+
