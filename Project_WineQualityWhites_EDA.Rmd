@@ -25,7 +25,6 @@ library(reshape2)
 library(dplyr)
 library(memisc)
 library(RColorBrewer)
-library(gridExtra)
 ```
 
 ```{r echo=FALSE, Load_the_Data}
@@ -371,37 +370,19 @@ ggplot(aes(x = fixed.acidity, y = pH), data = wine) +
 <br>
 在查看完几组相关性比较高的变量之后，现在来观察下我们主要感兴趣的变量白酒品质 quality 与白酒化学成分变量之间的关系。
 
-由于 quality 与 alcohol 的相关度最高，相关系数有0.44， 所以我们首先来绘制 quality 与 alcohol 的散点图。
-
-```{r echo=FALSE}
-ggplot(aes(x = alcohol, y = quality), data = wine) +
-  geom_point(alpha = 0.3)
-```
-
-<br>
-增加抖动和线性拟合。
-
-```{r echo=FALSE}
-ggplot(aes(x = alcohol, y = quality), data = wine) +
-  geom_jitter(width = 0.05, alpha = 0.3) + 
-  geom_smooth(method = 'lm', color = 'blue')
-```
-
-<br>
-从上图看，它们之间的线性关系并不是特别明显。
-再来看 quality 与 alcohol 之间的箱图，即查看不同 quality 下的 alcohol 变量的分布情况。
-
+由于 quality 与 alcohol 的相关度最高，相关系数有0.44， 所以我们首先来绘制 quality 与 alcohol 的散点图，并增加抖动和线性拟合, 同时在其上叠加上箱图，便于观察数据的分布情况。
 
 ```{r echo=FALSE}
 wine$quality_factor <- factor(wine$quality)  # 将quality 转换成因子变量
 
 ggplot(aes(x = quality_factor, y = alcohol), data = wine) +
-  geom_boxplot() + 
-  coord_flip()
+  geom_jitter(alpha = 0.2) + 
+  geom_boxplot(alpha = 0.5)
 ```
 
-<br> 
-从这幅箱图中我们发现，alcohol 的中位数并非是随 quality 线性增长的，
+<br>
+从上图看，alcohol 与 quality 之间的线性关系并不是特别明显。
+并且观察箱图发现，alcohol 的中位数并非是随 quality 线性增长的，
 而是随着quality 增加，alcohol 中位数先降低，后升高。
 
 下面具体看下不同 quallity 下，alcohol 在数值上的统计量。
@@ -455,58 +436,52 @@ mtable(m1, m2, m3)
 <br>
 接下来我们观察 quality 与 density 的关系。它们的相关系数是 -0.31。
 
-绘制 quality 与 density 的散点图，增加了抖动和透明度。
-
-```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(aes(x = density, y = quality), data = wine) +
-  geom_jitter(alpha = 0.1) + 
-  xlim(0.985, 1.02) + 
-  geom_smooth(method = 'lm', color = 'blue')
-```
-
-
-<br>
-绘制不同 quality 下 density 变量的箱图。
+绘制 density 与 quallity 的散点图和箱图，并增加抖动和透明度, 同时忽略了若干离群值，方便观察数据的主体部分。
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x = quality_factor, y = density), data = wine) +
-  geom_boxplot() + 
-  ylim(0.985, 1.02) +
-  coord_flip()
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.5) +
+  ylim(0.985, 1.005) 
 ```
 
 
 
-
 <br>
-quality 与 chlorides 的箱图。
+chlorides 与 quality 的散点图和箱图。
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x = quality_factor, y = chlorides), data = wine) +
-  geom_boxplot() + 
-  coord_flip()
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.5) + 
+  coord_cartesian(ylim = c(0.01, 0.101))
 ```
 
 
-<br>
-quality 与 volatile.acidity 的箱图。
 
-```{r echo=FALSE}
+
+<br>
+volatile.acidity 与 quality 的散点图和箱图。
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x = quality_factor, y = volatile.acidity), data = wine) +
-  geom_boxplot() + 
-  coord_flip()
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.5) 
 ```
+
+
 
 
 <br>
-quality 与 total.sulfur.dioxide 的箱图。
+total.sulfur.dioxide 与 quality 的散点图和箱图。
 
-```{r echo=FALSE}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x = quality_factor, y = total.sulfur.dioxide), data = wine) +
-  geom_boxplot() + 
-  coord_flip()
+  geom_jitter(alpha = 0.2) +
+  geom_boxplot(alpha = 0.5) 
 ```
 
+<br>
 虽然 quality 与 chlorides、volatile.acidity、total.sulfur.dioxide 之间有相对来说较大的相关系数，约在-0.2左右，
 这个数值并不大，所以从图中并没有发现它们之间非常明显的线性关系。
 
@@ -578,9 +553,10 @@ ggplot(aes(x = alcohol, y = density), data = wine) +
 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(aes(x = alcohol, y = density), data = wine) +
-  geom_point(aes(color = quality_factor)) +
-  scale_color_brewer(type = 'qual') + 
+ggplot(aes(x = alcohol, y = density, color = quality_factor), data = wine) +
+  geom_jitter(alpha=0.3) +
+  geom_smooth(method = "lm", se = FALSE, size=1) + 
+  scale_color_brewer(palette="Blues") + 
   scale_y_continuous(limits = c(0.985, 1.005))
 ```
 
@@ -588,7 +564,7 @@ ggplot(aes(x = alcohol, y = density), data = wine) +
 <br>
 从上图发现，从左上到右下角，quality 有逐渐增大的趋势。
 
-由于上图中颜色太多，不利于观察，这里将 quanlity 分数切分成三份，
+由于上图中颜色种类太多，不利于观察，这里将 quanlity 分数切分成三份，
 即将白酒品质按 quality 分为低（0-5）、中（6）、高（7-10）这三个等级。
 在每一等级中数据量的分布如下：
 
@@ -602,11 +578,10 @@ table(wine$quality_cut)
 <br>
 然后我们用重新分组的 quality 等级来绘制类似的图。
 
-
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(aes(x = alcohol, y = density), data = wine) +
-  geom_point(aes(color = quality_cut)) +
-  scale_color_brewer(type = 'qual') + 
+ggplot(aes(x = alcohol, y = density, color = quality_cut), data = wine) +
+  geom_jitter() +
+  scale_color_brewer(palette = "Blues") + 
   scale_y_continuous(limits = c(0.985, 1.005))
 ```
 
@@ -620,7 +595,7 @@ ggplot(aes(x = alcohol, y = density), data = wine) +
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x = residual.sugar, y = density), data = wine) +
   geom_point(aes(color = quality_cut)) +
-  scale_color_brewer(type = 'qual') + 
+  scale_color_brewer(palette = "Greens") + 
   scale_x_continuous(limits = c(0,30)) + 
   scale_y_continuous(limits = c(0.985, 1.005))
 ```
@@ -817,23 +792,16 @@ ggplot(data = melted_cormat, aes(x = Var1, y = Var2, fill = value)) +
 
 #### 图二
 
-```{r echo=FALSE, Plot_Two, fig.width=7, fig.height=6}
 
-p1 <- ggplot(aes(x = alcohol, y = quality), data = wine) +
-  geom_jitter(width = 0.05, alpha = 0.3) + 
-  geom_smooth(method = 'lm', color = 'blue') + 
-  ggtitle("Scatter Plot of Wine Quality by Alcohol") + 
+```{r echo=FALSE}
+wine$quality_factor <- factor(wine$quality)  # 将quality 转换成因子变量
+
+ggplot(aes(x = quality_factor, y = alcohol), data = wine) +
+  geom_jitter(alpha = 0.2) + 
+  geom_boxplot(alpha = 0.5) + 
+  ggtitle("Wine Quality vs. Alcohol") + 
   xlab("alcohol (%)") + 
   ylab("quality")
-
-p2 <- ggplot(aes(x = quality_factor, y = alcohol), data = wine) +
-  geom_boxplot() + 
-  coord_flip() +
-  ggtitle("Box Plot of Wine Quality by Alcohol") + 
-  ylab("alcohol (%)") + 
-  xlab("quality")
-
-grid.arrange(p1, p2, ncol = 1)
 ```
 
 
@@ -842,13 +810,10 @@ grid.arrange(p1, p2, ncol = 1)
 #### 关于图二的描述
 
 图二分别通过散点图和箱图这两种方式，来描述白酒品质 quality 与酒精度 alcohol 之间的关系。
-第一幅散点图通过抖动和设置透明度的方法，将原本过度重合的点进行区分。
-虽然 quality 与 alcohol 之间的相关系数相对较大，但是通过绘制线性拟合的直线，
-发现如果只用 alcohol 做线性拟合，并不能很好预测 quality。
-然后通过第二幅箱图，我们进一步观察到，其实 quality 并非随 alcohol 的增大而增大的：
+散点图通过抖动和设置透明度的方法，将原本过度重合的点进行区分。
+虽然 quality 与 alcohol 的相关系数是 0.44，但通过箱图我们观察到，其实 quality 并非随 alcohol 的增大而增大的：
 在品质小于6时，酒精度越高，品质可能越低，是负相关的；
 而在品质大于等于6时， 酒精度越高，品质越有可能提高，是正相关的。
-这也解释了为什么第一幅散点图中线性拟合的效果不好了。
 
 
 
@@ -856,9 +821,9 @@ grid.arrange(p1, p2, ncol = 1)
 
 #### 图三
 ```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Three}
-ggplot(aes(x = alcohol, y = density), data = wine) +
-  geom_point(aes(color = quality_cut)) +
-  scale_color_brewer(type = 'qual') + 
+ggplot(aes(x = alcohol, y = density, color = quality_cut), data = wine) +
+  geom_jitter() +
+  scale_color_brewer(palette = "Blues") + 
   scale_y_continuous(limits = c(0.985, 1.005)) + 
   labs(title = "Wine Density by Alcohol and Quality",
        x = "alcohol (%)", y = "density (g/cm^3)", color = "quality")
