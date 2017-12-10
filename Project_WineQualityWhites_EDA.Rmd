@@ -64,9 +64,13 @@ summary(wine)
 <br>
 绘制 quality 变量的直方图。
 
+
+
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
-qplot(x = quality, data = wine)
+ggplot(aes(x=quality), data = wine) + 
+  geom_bar()
 ```
+
 
 
 <br>
